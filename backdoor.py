@@ -53,6 +53,7 @@ def build_key(bits=2048, e=65537, embed='', pos=1, randfunc=None):
     rsa = RSA.generate(bits, randfunc)
     # extract modulus as a string
     n_str = unhexlify(str(hex(rsa.n))[2:])
+    # print(str(hex(rsa.n)), n_str)
     # embed data into the modulus
     n_hex = hexlify(replace_at(n_str, embed, pos))
     n = gmpy.mpz(n_hex, 16)
@@ -70,16 +71,38 @@ def build_key(bits=2048, e=65537, embed='', pos=1, randfunc=None):
         (p, q) = (q, p)
     return RSA.construct((int(n), int(e), int(d), int(p), int(q)))
 
-def backdoor_rsa(bit_count=2048):
+def recover_seed(modulus='', pos=1):
+    # recreate the master private key from the passphrase
+    master = curve25519.Private(secret=bytes(unhexlify(MASTER_PUB_HEX)))
+    print('master', master.serialize())
+    # extract the ephemeral public key from modulus
+    mod_str = unhexlify(str(hex(modulus))[2:])
+    # print(hex(modulus), mod_str, mod_str[pos:pos+32], len(mod_str[pos:pos+32]))
+    ephem_pub = curve25519.Public(mod_str[pos:pos+32])
+    # compute seed with master private and ephemeral public
+    return (master.get_shared_key(ephem_pub), ephem_pub)
+
+def recover_key(n='', bit_count=1024):
+    (seed, ephem_pub) = recover_seed(modulus=n, pos=80)
+    print(seed, ephem_pub)
+    prng = AESPRNG(seed)
+    ephem_pub = ephem_pub.serialize()
+    # deterministic key generation from seed
+    rsa = build_key(bits=bit_count, embed=ephem_pub, pos=80, randfunc=prng.randbytes)
+    print(rsa.p, rsa.q, rsa.e, rsa.d)
+
+def backdoor_rsa(bit_count=1024):
     # deserialize master ECDH public key embedded in program
     master_pub = curve25519.Public(unhexlify(MASTER_PUB_HEX))
+    print('master_pub', master_pub.serialize())
     # generate a random (yes, actually random) ECDH private key
     ephem = curve25519.Private()
     # derive the corresponding public key for later embedding
     ephem_pub = ephem.get_public()
+    # print(ephem, ephem_pub)
     # combine the ECDH keys to generate the seed
     seed = ephem.get_shared_key(master_pub)
-
+    print(seed, ephem_pub)
     prng = AESPRNG(seed)
     ephem_pub = ephem_pub.serialize()
 
