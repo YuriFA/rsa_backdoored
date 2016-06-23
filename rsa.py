@@ -1,11 +1,12 @@
 from functools import partial
 from math import sqrt
-from helper import rand_prime, randint_prime, mmi, coprime, egcd, exponent
+from helper import rand_prime, randint_prime, coprime, egcd, exponent, modinv
 from Crypto.PublicKey import RSA
 import sys
 import timeit
 import gmpy
 import backdoor
+from wiener import wiener_attack
 
 BIT_COUNT = 1024
 
@@ -19,7 +20,7 @@ SEC_ENC_PATH = 'example/encrypt2.bin'
 DEC_PATH = 'example/dec_text.txt'
 
 class SimpleRSA():
-	def __init__(self, bit_count):
+	def __init__(self, bit_count=256):
 		self.bit_count = bit_count
 		self.b_sz = (bit_count + bit_count) // 8
 		self.rsa = ''
@@ -30,14 +31,20 @@ class SimpleRSA():
 			q = rand_prime(self.bit_count, not_allowed=[p])
 			n = p * q
 			# make sure that p is smaller than q
-			if p < q:
+			if p > q:
 					(p, q) = (q, p)
 		else:
 			p, q, n = rsa.p, rsa.q, rsa.n
 
 		t = (p - 1) * (q - 1)
-		e = coprime(t, not_allowed=[e])
-		d = mmi(e, t)
+		# e = coprime(t, not_allowed=[e])
+		# e = 274177*67280421310721
+		e = 641*6700417
+		print(e)
+		# e = 65537
+		d = modinv(e, t)
+		# print(d)
+		e, d = d, e
 		self.rsa = RSA.construct((int(n), int(e), int(d), int(p), int(q)))
 
 	def build_keys(self, with_backdoor=False):
@@ -138,8 +145,12 @@ def do_repeat_attack():
 	print(decrypt_repeat(rsa_o.rsa.n, rsa_o.rsa.e, ENC_PATH, DEC_PATH))
 
 def do_factorization():
-	print(factoriztion(153649*152041))
-	print(factoriztion(23360947609))
+	rsa_o = SimpleRSA(16)
+	rsa_o.build_keys()
+	fact = factoriztion(rsa_o.rsa.n)
+	print(fact, rsa_o.rsa.q, rsa_o.rsa.p, fact == (rsa_o.rsa.q, rsa_o.rsa.p))
+	# print(factoriztion(153649*152041))
+	# print(factoriztion(23360947609))
 
 def do_without_keys():
 	rsa_f = SimpleRSA(BIT_COUNT)
@@ -181,8 +192,14 @@ def decrypt_without_keys(n, e1, e2, enc_path1, enc_path2):
 		dec += res_b.decode()
 	return dec
 
+def do_wiener_attack():
+	rsa_o = SimpleRSA(128)
+	rsa_o.build_keys()
+	print(wiener_attack(rsa_o.rsa.n, rsa_o.rsa.e))
+
 if __name__ == '__main__':
-	sys.exit(main())
+	# sys.exit(main())
 	# sys.exit(do_repeat_attack())
 	# sys.exit(do_without_keys())
 	# sys.exit(do_factorization())
+	sys.exit(do_wiener_attack())

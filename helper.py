@@ -48,6 +48,13 @@ def mmi(a, m):
     t += m
   return t
 
+def modinv(a, m):
+    g, x, y = egcd(a, m)
+    if g != 1:
+        raise Exception('modular inverse does not exist')
+    else:
+        return x % m
+
 def coprime(num, not_allowed=[]):
   res = randint_prime(1, num)
   while gcd(num, res) != 1 or res in not_allowed:
@@ -82,3 +89,54 @@ def exponent(num,denom,mod):
     while a>mod:
         a=a-mod
     return a
+
+def bitlength(x):
+    '''
+    Calculates the bitlength of x
+    '''
+    assert x >= 0
+    n = 0
+    while x > 0:
+        n = n+1
+        x = x>>1
+    return n
+
+def isqrt(n):
+    '''
+    Calculates the integer square root
+    for arbitrary large nonnegative integers
+    '''
+    if n < 0:
+        raise ValueError('square root not defined for negative numbers')
+
+    if n == 0:
+        return 0
+    a, b = divmod(bitlength(n), 2)
+    x = 2**(a+b)
+    while True:
+        y = (x + n//x)//2
+        if y >= x:
+            return x
+        x = y
+
+def is_perfect_square(n):
+    '''
+    If n is a perfect square it returns sqrt(n),
+
+    otherwise returns -1
+    '''
+    h = n & 0xF; #last hexadecimal "digit"
+
+    if h > 9:
+        return -1 # return immediately in 6 cases out of 16.
+
+    # Take advantage of Boolean short-circuit evaluation
+    if ( h != 2 and h != 3 and h != 5 and h != 6 and h != 7 and h != 8 ):
+        # take square root if you must
+        t = isqrt(n)
+        if t*t == n:
+            return t
+        else:
+            return -1
+
+    return -1
